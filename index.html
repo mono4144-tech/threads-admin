@@ -52,7 +52,7 @@ a{color:var(--accent)}
 <div id="toast"></div>
 <script>
 const OWNER = 'mono4144-tech', REPO = 'threads-auto', WORKFLOW = 'threads.yml';
-const S = { token: '', cfg: null, cfgSha: '', queue: [], tab: 'queue', filter: 'all', editing: null, lastRun: null };
+const S = { token: '', cfg: null, cfgSha: '', queue: [], reports: [], tab: 'queue', filter: 'all', editing: null, lastRun: null };
 try { S.token = localStorage.getItem('gh_token') || ''; } catch (e) {}
 
 // ───── 도우미 ─────
@@ -99,6 +99,7 @@ async function runNow() { await gh(`/repos/${OWNER}/${REPO}/actions/workflows/${
 async function loadAll() {
   const [c, q] = await Promise.all([readFile('config.json'), readFile('queue.json')]);
   S.cfg = c.data; S.queue = q.data;
+  try { S.reports = (await readFile('reports.json')).data; } catch (e) { S.reports = []; }
   try { const r = await gh(`/repos/${OWNER}/${REPO}/actions/workflows/${WORKFLOW}/runs?per_page=1`); S.lastRun = r.workflow_runs[0] || null; } catch (e) { S.lastRun = null; }
 }
 async function act(fn, okMsg) { try { await fn(); if (okMsg) toast(okMsg); } catch (e) { toast(e.status === 401 ? '토큰이 만료됐거나 잘못됐어요' : (e.message || '오류가 났어요')); } render(); }
@@ -113,9 +114,9 @@ function render() {
       h('button', { onclick: () => act(loadAll, '새로 불러왔어요') }, '새로고침'),
       h('button', { onclick: () => act(runNow, '실행을 시작했어요. 1~2분 뒤 새로고침하세요') }, '지금 실행')),
     h('div', { class: 'note' }, run ? `마지막 실행: ${new Date(run.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} · ${run.status !== 'completed' ? '진행 중' : run.conclusion === 'success' ? '정상' : '오류'}` : ''),
-    h('div', { class: 'tabs' }, [['queue', '예정 글'], ['log', '기록'], ['accounts', '계정']].map(([k, label]) =>
+    h('div', { class: 'tabs' }, [['queue', '예정 글'], ['log', '기록'], ['stats', '성과'], ['accounts', '계정']].map(([k, label]) =>
       h('button', { class: S.tab === k ? 'on' : '', onclick: () => { S.tab = k; S.editing = null; render(); } }, label))),
-    S.tab === 'queue' ? queueView() : S.tab === 'log' ? logView() : accountsView());
+    S.tab === 'queue' ? queueView() : S.tab === 'log' ? logView() : S.tab === 'stats' ? statsView() : accountsView());
 }
 
 function loginView() {
@@ -177,6 +178,21 @@ function logView() {
     h('div', { class: 'meta' }, h('b', {}, `${it.date.slice(5).replace('-', '/')} ${it.time}`), accName(it.account), h('span', { class: 'badge ' + it.status }, STATUS[it.status]), it.permalink ? h('a', { href: it.permalink, target: '_blank', rel: 'noopener' }, '쓰레드에서 보기') : null),
     h('div', { class: 'note' }, it.title || ''), it.error ? h('div', { class: 'err' }, it.error) : null,
     h('details', {}, h('summary', { class: 'note' }, '글 보기'), h('p', { class: 'body' }, it.main), (it.replies || []).map(r => h('p', { class: 'body reply' }, r)))));
+  return box;
+}
+
+function statsView() {
+  const items = S.reports.filter(visible).sort((a, b) => b.week_end.localeCompare(a.week_end));
+  const box = h('div', {}, filterChips());
+  if (!items.length) box.append(h('div', { class: 'card note' }, '아직 리포트가 없어요. 매주 일요일 오전에 지난 7일 성과를 분석해서 여기에 올려요.'));
+  const n = v => (v || 0).toLocaleString('ko-KR');
+  for (const r of items) box.append(h('div', { class: 'card' },
+    h('div', { class: 'meta' }, h('b', {}, r.week_end + ' 주간 리포트'), accName(r.account)),
+    h('div', { class: 'note' }, `글 ${r.posts.length}개 · 조회 ${n(r.totals.views)} · 좋아요 ${n(r.totals.likes)} · 답글 ${n(r.totals.replies)} · 공유 ${n(r.totals.reposts)}` + (r.followers != null ? ` · 팔로워 ${n(r.followers)}` : '')),
+    h('p', { class: 'body' }, r.analysis),
+    h('details', {}, h('summary', { class: 'note' }, '글별 성과 (조회수 순)'), r.posts.map(p => h('div', { class: 'reply' },
+      h('div', { class: 'note' }, `${p.when}(${p.weekday}) · 조회 ${n(p.views)} · 좋아요 ${n(p.likes)} · 답글 ${n(p.replies)} · 공유 ${n(p.reposts)} `, p.permalink ? h('a', { href: p.permalink, target: '_blank', rel: 'noopener' }, '보기') : null),
+      h('div', {}, p.text.split('\n')[0].slice(0, 80)))))));
   return box;
 }
 
