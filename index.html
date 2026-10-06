@@ -200,8 +200,9 @@ function accountForm(a) {
   const ctaStart = h('input', { type: 'date', value: a.cta_start || '' }); const ctaHint = h('textarea', { rows: 3 }); ctaHint.value = a.cta_hint || '';
   const slotsBox = h('div', {}); const slotEls = [];
   const addSlot = s => { const sel = h('select', {}, hours.map(t => h('option', { value: t, selected: t === s.time }, t))); const hint = h('input', { value: s.hint || '', placeholder: '이 시간 글의 주제 방향' });
-    const entry = { sel, hint }; slotEls.push(entry);
-    const row = h('div', { class: 'slot' }, sel, hint, h('button', { onclick: () => { slotEls.splice(slotEls.indexOf(entry), 1); row.remove(); } }, '삭제')); slotsBox.append(row); };
+    const cta = h('input', { type: 'checkbox', style: 'width:auto' }); cta.checked = s.cta !== false;
+    const entry = { sel, hint, cta }; slotEls.push(entry);
+    const row = h('div', { class: 'slot' }, sel, hint, h('label', { style: 'margin:0;white-space:nowrap;align-self:center' }, cta, ' 링크'), h('button', { onclick: () => { slotEls.splice(slotEls.indexOf(entry), 1); row.remove(); } }, '삭제')); slotsBox.append(row); };
   (a.slots || []).forEach(addSlot);
   const secretOf = () => a.token_secret || ('THREADS_TOKEN_' + user.value.trim().replace(/^@/, '').replace(/[^A-Za-z0-9]/g, '_').toUpperCase());
   const secretCode = h('code', {}, secretOf()); user.addEventListener('input', () => secretCode.textContent = secretOf());
@@ -211,7 +212,7 @@ function accountForm(a) {
     if (!/^[a-z0-9._]+$/.test(id)) return toast('쓰레드 아이디는 영문·숫자·밑줄·마침표만 가능해요');
     if (a.isNew && S.cfg.accounts.some(x => x.id === id)) return toast('이미 있는 계정이에요');
     if (!persona.value.trim()) return toast('말투·주제 설정을 적어 주세요');
-    const slots = slotEls.map(s => ({ time: s.sel.value, hint: s.hint.value.trim() })).sort((x, y) => x.time.localeCompare(y.time));
+    const slots = slotEls.map(s => ({ time: s.sel.value, hint: s.hint.value.trim(), cta: s.cta.checked })).sort((x, y) => x.time.localeCompare(y.time));
     if (!slots.length) return toast('올리는 시간을 하나 이상 넣어 주세요');
     if (new Set(slots.map(s => s.time)).size !== slots.length) return toast('같은 시간이 두 번 들어 있어요');
     const { isNew, ...rest } = a; const acc = { ...rest, id, reference_notes: notes.value.trim(), name: name.value.trim(), username: id, enabled: enabled.checked, token_secret: secretOf(), persona: persona.value.trim(), cta_start: ctaStart.value, cta_hint: ctaHint.value.trim(), slots };
@@ -228,7 +229,7 @@ function accountForm(a) {
       '토큰은 60일마다 새로 발급해 같은 이름으로 다시 등록해야 해요.'),
     h('label', {}, '말투·주제 설정'), persona,
     h('label', {}, '참고 패턴 메모 (인기 글에서 뽑은 패턴. 글을 쓸 때 참고해요)'), notes,
-    h('label', {}, '올리는 시간과 주제 방향'), slotsBox, h('div', { class: 'row' }, h('button', { onclick: () => addSlot({ time: '12:00', hint: '' }) }, '+ 시간 추가')),
+    h('label', {}, '올리는 시간과 주제 방향 ("링크"에 체크한 시간의 글만 프로필 링크로 안내해요)'), slotsBox, h('div', { class: 'row' }, h('button', { onclick: () => addSlot({ time: '12:00', hint: '' }) }, '+ 시간 추가')),
     h('div', { class: 'row two' }, h('div', {}, h('label', {}, '링크 유도 시작일 (비우면 안 함)'), ctaStart), h('div', {})),
     h('label', {}, '링크 유도 방법'), ctaHint,
     h('div', { class: 'row' }, h('button', { class: 'primary', onclick: save }, '저장'), h('button', { onclick: () => { S.editing = null; render(); } }, '취소'), a.isNew ? null : h('button', { class: 'danger', onclick: remove }, '계정 지우기')));
