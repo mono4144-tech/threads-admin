@@ -196,6 +196,7 @@ function accountForm(a) {
   const name = h('input', { value: a.name, placeholder: '예: 지안' }), user = h('input', { value: a.username, placeholder: '예: mindreader_jian', disabled: !a.isNew });
   const enabled = h('input', { type: 'checkbox', style: 'width:auto' }); enabled.checked = !!a.enabled;
   const persona = h('textarea', { rows: 8, placeholder: '어떤 사람이 어떤 말투로 어떤 주제를 쓰는지 적어 주세요' }); persona.value = a.persona || '';
+  const notes = h('textarea', { rows: 6, placeholder: '요즘 반응 좋은 글의 주제·첫 문장 방식·구조 메모 (비워 둬도 돼요)' }); notes.value = a.reference_notes || '';
   const ctaStart = h('input', { type: 'date', value: a.cta_start || '' }); const ctaHint = h('textarea', { rows: 3 }); ctaHint.value = a.cta_hint || '';
   const slotsBox = h('div', {}); const slotEls = [];
   const addSlot = s => { const sel = h('select', {}, hours.map(t => h('option', { value: t, selected: t === s.time }, t))); const hint = h('input', { value: s.hint || '', placeholder: '이 시간 글의 주제 방향' });
@@ -213,7 +214,7 @@ function accountForm(a) {
     const slots = slotEls.map(s => ({ time: s.sel.value, hint: s.hint.value.trim() })).sort((x, y) => x.time.localeCompare(y.time));
     if (!slots.length) return toast('올리는 시간을 하나 이상 넣어 주세요');
     if (new Set(slots.map(s => s.time)).size !== slots.length) return toast('같은 시간이 두 번 들어 있어요');
-    const acc = { id, name: name.value.trim(), username: id, enabled: enabled.checked, token_secret: secretOf(), persona: persona.value.trim(), cta_start: ctaStart.value, cta_hint: ctaHint.value.trim(), slots };
+    const { isNew, ...rest } = a; const acc = { ...rest, id, reference_notes: notes.value.trim(), name: name.value.trim(), username: id, enabled: enabled.checked, token_secret: secretOf(), persona: persona.value.trim(), cta_start: ctaStart.value, cta_hint: ctaHint.value.trim(), slots };
     const cfg = JSON.parse(JSON.stringify(S.cfg)); const i = cfg.accounts.findIndex(x => x.id === id); if (i >= 0) cfg.accounts[i] = acc; else cfg.accounts.push(acc);
     act(async () => { await saveConfig(cfg, '계정 설정: ' + id); S.editing = null; }, '저장했어요. 다음 실행부터 반영돼요');
   };
@@ -226,6 +227,7 @@ function accountForm(a) {
       '2. ', h('a', { href: `https://github.com/${OWNER}/${REPO}/settings/secrets/actions/new`, target: '_blank', rel: 'noopener' }, 'GitHub 시크릿 등록 화면'), '에서 Name에 ', secretCode, ' 를 넣고 Secret에 토큰을 붙여넣어요.', h('br'),
       '토큰은 60일마다 새로 발급해 같은 이름으로 다시 등록해야 해요.'),
     h('label', {}, '말투·주제 설정'), persona,
+    h('label', {}, '참고 패턴 메모 (인기 글에서 뽑은 패턴. 글을 쓸 때 참고해요)'), notes,
     h('label', {}, '올리는 시간과 주제 방향'), slotsBox, h('div', { class: 'row' }, h('button', { onclick: () => addSlot({ time: '12:00', hint: '' }) }, '+ 시간 추가')),
     h('div', { class: 'row two' }, h('div', {}, h('label', {}, '링크 유도 시작일 (비우면 안 함)'), ctaStart), h('div', {})),
     h('label', {}, '링크 유도 방법'), ctaHint,
