@@ -177,6 +177,7 @@ function logView() {
   for (const it of items) box.append(h('div', { class: 'card' },
     h('div', { class: 'meta' }, h('b', {}, `${it.date.slice(5).replace('-', '/')} ${it.time}`), accName(it.account), h('span', { class: 'badge ' + it.status }, STATUS[it.status]), it.permalink ? h('a', { href: it.permalink, target: '_blank', rel: 'noopener' }, '쓰레드에서 보기') : null),
     h('div', { class: 'note' }, it.title || ''), it.error ? h('div', { class: 'err' }, it.error) : null,
+    ['failed', 'missed'].includes(it.status) ? h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => act(async () => { await mutateQueue(q => { const x = q.find(i => i.id === it.id); if (x && ['failed', 'missed'].includes(x.status)) { x.status = 'scheduled'; x.error = ''; x.retry = true; } }, '다시 올리기: ' + it.id); await runNow(); }, '다시 올리고 있어요. 1~2분 뒤 새로고침하세요') }, '다시 올리기')) : null,
     h('details', {}, h('summary', { class: 'note' }, '글 보기'), h('p', { class: 'body' }, it.main), (it.replies || []).map(r => h('p', { class: 'body reply' }, r)))));
   return box;
 }
